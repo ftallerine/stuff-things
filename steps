@@ -1,47 +1,32 @@
 @echo off
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "& { ^
-    [xml]$xmlData = @'^
-      <testcase>^
-        <title>Your Test Case Title</title>^
-        <description>Your Test Case Description</description>^
-        <steps id="0" last="2">^
-          <!-- Your XML data here -->^
-        </steps>^
-      </testcase>^
-    '^; ^
-
-    $testCaseTitle = $xmlData.testcase.title; ^
-    $testCaseDescription = $xmlData.testcase.description; ^
+    $csvFile = 'C:\path\to\your\input.csv'; ^
+    $csvData = Import-Csv -Path $csvFile; ^
 
     $wordApp = New-Object -ComObject Word.Application; ^
     $wordApp.Visible = $true; ^
     $doc = $wordApp.Documents.Add(); ^
 
-    $doc.Range().Text = "Test Case Title: " + $testCaseTitle + \"`r`n\" + "Test Case Description: " + $testCaseDescription + \"`r`n`r`n\"; ^
+    $table = $doc.Tables.Add($doc.Range(), ($csvData.Count + 1), ($csvData[0].PSObject.Properties.Count)); ^
 
-    $table = $doc.Tables.Add($doc.Range($doc.Range().End - 1, $doc.Range().End), $xmlData.testcase.steps.step.Count + 1, 4); ^
-    $table.Cell(1, 1).Range.Text = 'Step ID'; ^
-    $table.Cell(1, 2).Range.Text = 'Step Type'; ^
-    $table.Cell(1, 3).Range.Text = 'Step Result'; ^
-    $table.Cell(1, 4).Range.Text = 'Description'; ^
+    $column = 1; ^
+    foreach ($header in $csvData[0].PSObject.Properties.Name) { ^
+      $table.Cell(1, $column).Range.Text = $header; ^
+      $column++; ^
+    } ^
 
     $row = 2; ^
-
-    foreach ($step in $xmlData.testcase.steps.step) { ^
-      $stepId = $step.id; ^
-      $stepType = $step.parameter.Where({$_.name -eq 'StepType'}).value; ^
-      $stepResult = $step.parameter.Where({$_.name -eq 'StepResult'}).value; ^
-      $description = $step.parameter.Where({$_.name -eq 'Description'}).value; ^
-
-      $table.Cell($row, 1).Range.Text = $stepId; ^
-      $table.Cell($row, 2).Range.Text = $stepType; ^
-      $table.Cell($row, 3).Range.Text = $stepResult; ^
-      $table.Cell($row, 4).Range.Text = $description; ^
-
+    foreach ($line in $csvData) { ^
+      $column = 1; ^
+      foreach ($value in $line.PSObject.Properties.Value) { ^
+        $table.Cell($row, $column).Range.Text = $value; ^
+        $column++; ^
+      } ^
       $row++; ^
     } ^
 
-    $doc.SaveAs([Environment]::GetFolderPath('Desktop') + '\ParsedXMLData.docx'); ^
+    $doc.SaveAs([Environment]::GetFolderPath('Desktop') + '\ParsedCSVData.docx'); ^
     $wordApp.Activate(); ^
   }"
+
